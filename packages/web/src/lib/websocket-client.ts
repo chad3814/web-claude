@@ -27,8 +27,15 @@ export class WebSocketClient {
   private connectionTimeout: number | null = null;
   private connectedAt: number | null = null;
   private shouldReconnect = true;
+  private heartbeatInterval: number | null = null;
+  private heartbeatTimeout: number | null = null;
+  private lastPongReceived: number | null = null;
 
   constructor(url: string, options?: WebSocketOptions) {
+    if (!this.isWebSocketSupported()) {
+      throw new Error('WebSocket is not supported in this browser');
+    }
+
     this.url = this.normalizeUrl(url);
     this.options = { ...DEFAULT_OPTIONS, ...options };
 
@@ -38,6 +45,32 @@ export class WebSocketClient {
     this.eventListeners.set('message', new Set());
     this.eventListeners.set('reconnecting', new Set());
     this.eventListeners.set('reconnected', new Set());
+
+    this.setupVisibilityHandling();
+  }
+
+  private isWebSocketSupported(): boolean {
+    return typeof WebSocket !== 'undefined';
+  }
+
+  private setupVisibilityHandling(): void {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.stopHeartbeat();
+      } else {
+        if (this.isConnected()) {
+          this.startHeartbeat();
+        } else if (this.shouldReconnect && this.state === 'disconnected') {
+          this.connect().catch((error) => {
+            console.error('Failed to reconnect after visibility change:', error);
+          });
+        }
+      }
+    });
   }
 
   private normalizeUrl(url: string): string {
@@ -101,6 +134,7 @@ export class WebSocketClient {
           }
 
           this.flushMessageQueue();
+          this.startHeartbeat();
           resolve();
         };
 
@@ -109,6 +143,8 @@ export class WebSocketClient {
             clearTimeout(this.connectionTimeout);
             this.connectionTimeout = null;
           }
+
+          this.stopHeartbeat();
 
           const wasConnected = this.state === 'connected';
           this.state = 'disconnected';
@@ -138,7 +174,18 @@ export class WebSocketClient {
         this.ws.onmessage = (event) => {
           try {
             const message: WebSocketMessage = JSON.parse(event.data);
-            this.emit('message', message);
+
+            if (message.type === 'pong') {
+              this.lastPongReceived = Date.now();
+              if (this.heartbeatTimeout) {
+                clearTimeout(this.heartbeatTimeout);
+                this.heartbeatTimeout = null;
+              }
+            } else if (message.type === 'ping') {
+              this.send({ type: 'pong', data: null, timestamp: Date.now() });
+            } else {
+              this.emit('message', message);
+            }
           } catch (error) {
             this.emit('error', { message: 'Failed to parse message', error });
           }
@@ -191,6 +238,8 @@ export class WebSocketClient {
       clearTimeout(this.connectionTimeout);
       this.connectionTimeout = null;
     }
+
+    this.stopHeartbeat();
 
     if (this.ws) {
       this.ws.close(1000, 'Client disconnecting');
@@ -260,6 +309,36 @@ export class WebSocketClient {
         console.error(`Error in ${event} event handler:`, error);
       }
     });
+  }
+
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+
+    const HEARTBEAT_INTERVAL = 30000;
+    const HEARTBEAT_TIMEOUT = 5000;
+
+    this.heartbeatInterval = window.setInterval(() => {
+      if (this.isConnected()) {
+        this.send({ type: 'ping', data: null, timestamp: Date.now() });
+
+        this.heartbeatTimeout = window.setTimeout(() => {
+          console.error('No pong received, reconnecting...');
+          this.ws?.close();
+        }, HEARTBEAT_TIMEOUT);
+      }
+    }, HEARTBEAT_INTERVAL);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+
+    if (this.heartbeatTimeout) {
+      clearTimeout(this.heartbeatTimeout);
+      this.heartbeatTimeout = null;
+    }
   }
 
   public destroy(): void {
