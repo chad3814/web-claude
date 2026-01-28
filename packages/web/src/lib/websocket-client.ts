@@ -15,6 +15,20 @@ const DEFAULT_OPTIONS: Required<WebSocketOptions> = {
   timeout: 5000,
 };
 
+/**
+ * A robust WebSocket client with automatic reconnection, message queuing, and heartbeat monitoring.
+ *
+ * @example
+ * ```typescript
+ * const client = new WebSocketClient('ws://localhost:3000/ws');
+ *
+ * client.on('open', () => console.log('Connected'));
+ * client.on('message', (msg) => console.log('Received:', msg));
+ *
+ * await client.connect();
+ * client.send({ type: 'user_message', data: 'Hello', timestamp: Date.now() });
+ * ```
+ */
 export class WebSocketClient {
   private ws: WebSocket | null = null;
   private url: string;
@@ -31,6 +45,13 @@ export class WebSocketClient {
   private heartbeatTimeout: number | null = null;
   private lastPongReceived: number | null = null;
 
+  /**
+   * Creates a new WebSocket client instance.
+   *
+   * @param url - WebSocket server URL (e.g., 'ws://localhost:3000/ws' or '/ws')
+   * @param options - Optional configuration options
+   * @throws {Error} If WebSocket is not supported in the browser
+   */
   constructor(url: string, options?: WebSocketOptions) {
     if (!this.isWebSocketSupported()) {
       throw new Error('WebSocket is not supported in this browser');
@@ -87,14 +108,33 @@ export class WebSocketClient {
     return `${protocol}//${url}`;
   }
 
+  /**
+   * Gets the current connection state.
+   *
+   * @returns The current connection state
+   */
   public getState(): ConnectionState {
     return this.state;
   }
 
+  /**
+   * Checks if the client is currently connected.
+   *
+   * @returns True if connected and WebSocket is open
+   */
   public isConnected(): boolean {
     return this.state === 'connected' && this.ws?.readyState === WebSocket.OPEN;
   }
 
+  /**
+   * Establishes a connection to the WebSocket server.
+   *
+   * Automatically starts heartbeat monitoring and flushes queued messages on success.
+   * If connection fails, it will automatically retry based on reconnection settings.
+   *
+   * @returns Promise that resolves when connected or rejects on timeout/error
+   * @throws {Error} If connection times out or fails
+   */
   public async connect(): Promise<void> {
     if (this.state === 'connecting' || this.state === 'connected') {
       console.warn('WebSocket already connecting or connected');
@@ -226,6 +266,11 @@ export class WebSocketClient {
     }, delay);
   }
 
+  /**
+   * Disconnects from the WebSocket server and prevents automatic reconnection.
+   *
+   * Cleans up all timers, stops heartbeat, and closes the connection gracefully.
+   */
   public disconnect(): void {
     this.shouldReconnect = false;
 
@@ -250,6 +295,14 @@ export class WebSocketClient {
     this.reconnectAttempts = 0;
   }
 
+  /**
+   * Sends a message to the WebSocket server.
+   *
+   * If disconnected, the message is queued and will be sent on reconnection.
+   * Queue has a maximum size of 50 messages (oldest are discarded).
+   *
+   * @param message - The message to send
+   */
   public send(message: WebSocketMessage): void {
     const messageWithTimestamp: WebSocketMessage = {
       ...message,
@@ -293,10 +346,22 @@ export class WebSocketClient {
     }
   }
 
+  /**
+   * Registers an event listener for the specified event.
+   *
+   * @param event - The event type to listen for
+   * @param callback - The callback function to invoke when the event occurs
+   */
   public on(event: EventType, callback: EventCallback): void {
     this.eventListeners.get(event)?.add(callback);
   }
 
+  /**
+   * Removes an event listener for the specified event.
+   *
+   * @param event - The event type
+   * @param callback - The callback function to remove
+   */
   public off(event: EventType, callback: EventCallback): void {
     this.eventListeners.get(event)?.delete(callback);
   }
@@ -341,6 +406,12 @@ export class WebSocketClient {
     }
   }
 
+  /**
+   * Destroys the WebSocket client and cleans up all resources.
+   *
+   * Disconnects, removes all event listeners, clears message queue, and stops all timers.
+   * Should be called when the client is no longer needed.
+   */
   public destroy(): void {
     this.disconnect();
 
@@ -349,10 +420,20 @@ export class WebSocketClient {
     this.connectedAt = null;
   }
 
+  /**
+   * Gets the current number of reconnection attempts.
+   *
+   * @returns The number of reconnection attempts since last successful connection
+   */
   public getReconnectAttempts(): number {
     return this.reconnectAttempts;
   }
 
+  /**
+   * Gets the number of messages currently queued for sending.
+   *
+   * @returns The number of messages in the queue
+   */
   public getQueuedMessageCount(): number {
     return this.messageQueue.length;
   }
