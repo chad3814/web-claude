@@ -11,13 +11,17 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "fastify": "^4.26.0",
     "@fastify/cors": "^9.0.0",
-    "dotenv": "^16.4.0"
+    "@fastify/websocket": "^11.2.0",
+    "dotenv": "^16.4.0",
+    "fastify": "^4.26.0",
+    "ws": "^8.19.0"
   },
   "devDependencies": {
-    "tsx": "^4.7.0",
+    "@types/ws": "^8.18.1",
     "nodemon": "^3.0.0",
-    "pino-pretty": "^11.0.0"
+    "pino-pretty": "^11.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.9.3"
   }
 }

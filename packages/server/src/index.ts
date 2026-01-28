@@ -1,6 +1,8 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import websocket from '@fastify/websocket';
 import dotenv from 'dotenv';
+import { registerWebSocketRoutes } from './routes/websocket.js';
 
 // Load environment variables
 dotenv.config();
@@ -28,6 +30,17 @@ await fastify.register(cors, {
     : false,
   credentials: true
 });
+
+// Register WebSocket plugin
+await fastify.register(websocket, {
+  options: {
+    maxPayload: 1048576, // 1MB max message size
+    clientTracking: true
+  }
+});
+
+// Register WebSocket routes
+await registerWebSocketRoutes(fastify);
 
 // Health check endpoint
 fastify.get('/health', async (request, reply) => {
