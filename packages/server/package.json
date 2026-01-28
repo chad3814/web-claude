@@ -11,16 +11,22 @@
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:ws": "node test-websocket.mjs",
+    "test:ws:stream": "node test-websocket-stream.mjs",
+    "test:integration": "node test-integration.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
     "@fastify/cors": "^9.0.0",
+    "@fastify/websocket": "^11.2.0",
     "dotenv": "^16.4.0",
-    "fastify": "^4.26.0"
+    "fastify": "^4.26.0",
+    "ws": "^8.19.0"
   },
   "devDependencies": {
     "@types/node": "^25.0.10",
+    "@types/ws": "^8.18.1",
     "@vitest/ui": "^4.0.18",
     "nodemon": "^3.0.0",
     "pino-pretty": "^11.0.0",
