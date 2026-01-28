@@ -17,3 +17,13 @@ export {
   MessageLimitExceededError,
   InvalidMessageError,
 } from './types.js';
+export {
+  generateMessageId,
+  generateSessionId,
+  createMessage,
+  filterMessagesByRole,
+  filterMessagesByTimeRange,
+  getRecentMessages,
+  messageExists,
+  calculateTotalTokens,
+} from './utils.js';
