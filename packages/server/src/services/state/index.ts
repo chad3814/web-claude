@@ -5,13 +5,15 @@
  */
 
 export { SessionStore } from './session-store.js';
-export {
+export type {
   Session,
   Message,
   MessageRole,
   MessageMetadata,
   TokenUsage,
   SessionStoreConfig,
+} from './types.js';
+export {
   SessionNotFoundError,
   SessionLimitExceededError,
   MessageLimitExceededError,
