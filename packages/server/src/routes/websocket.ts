@@ -1,10 +1,14 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { WebSocket } from 'ws';
-import type { ServerMessage } from '../websocket/types.js';
+import type { ServerMessage, ClientMessage } from '../websocket/types.js';
 import { ConnectionManager } from '../websocket/connection-manager.js';
+import { MessageHandler } from '../websocket/message-handler.js';
 
 // Create singleton connection manager
 const connectionManager = new ConnectionManager();
+
+// Message handler will be initialized when routes are registered
+let messageHandler: MessageHandler;
 
 /**
  * Get the connection manager instance
@@ -14,9 +18,30 @@ export function getConnectionManager(): ConnectionManager {
 }
 
 /**
+ * Get the message handler instance
+ */
+export function getMessageHandler(): MessageHandler {
+  return messageHandler;
+}
+
+/**
  * Register WebSocket routes
  */
 export async function registerWebSocketRoutes(fastify: FastifyInstance) {
+  // Initialize message handler
+  messageHandler = new MessageHandler(fastify.log);
+
+  // Set up a basic user message handler (will be replaced in Task Group 4)
+  messageHandler.setUserMessageHandler(async (message: ClientMessage, sessionId: string) => {
+    fastify.log.info({
+      sessionId,
+      messageType: message.type,
+      content: message.content
+    }, 'User message received');
+
+    // TODO: This will be replaced with Claude API integration in Task Group 4
+  });
+
   // WebSocket endpoint
   fastify.register(async (fastify) => {
     fastify.get('/ws', { websocket: true }, (socket: WebSocket, request: FastifyRequest) => {
@@ -38,27 +63,15 @@ export async function registerWebSocketRoutes(fastify: FastifyInstance) {
     socket.send(JSON.stringify(connectionMessage));
 
     // Handle incoming messages
-    socket.on('message', (rawMessage: Buffer | string) => {
-      try {
-        const messageStr = rawMessage.toString();
-        fastify.log.debug({ sessionId, message: messageStr }, 'Received WebSocket message');
+    socket.on('message', async (rawMessage: Buffer | string) => {
+      const messageStr = rawMessage.toString();
+      fastify.log.debug({ sessionId, message: messageStr }, 'Received WebSocket message');
 
-        // Parse JSON message
-        const message = JSON.parse(messageStr);
+      const result = await messageHandler.handleMessage(messageStr, sessionId);
 
-        // TODO: Route message to appropriate handler
-        fastify.log.info({ sessionId, messageType: message.type }, 'Message received');
-
-      } catch (error) {
-        fastify.log.error({ sessionId, error }, 'Error parsing WebSocket message');
-
-        const errorMessage: ServerMessage = {
-          type: 'error',
-          sessionId,
-          error: 'Invalid message format'
-        };
-
-        socket.send(JSON.stringify(errorMessage));
+      if (!result.success) {
+        // Send error message back to client
+        socket.send(JSON.stringify(result.error));
       }
     });
 
