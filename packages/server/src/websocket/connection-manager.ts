@@ -73,7 +73,13 @@ export class ConnectionManager {
   sendToSession(sessionId: string, message: string): boolean {
     const socket = this.getSocket(sessionId);
 
-    if (!socket || socket.readyState !== socket.OPEN) {
+    if (!socket) {
+      console.error(`Session ${sessionId} not found`);
+      return false;
+    }
+
+    if (socket.readyState !== socket.OPEN) {
+      console.warn(`Socket for session ${sessionId} is not open (state: ${socket.readyState})`);
       return false;
     }
 
@@ -82,6 +88,8 @@ export class ConnectionManager {
       return true;
     } catch (error) {
       console.error(`Failed to send message to session ${sessionId}:`, error);
+      // Remove connection if send fails
+      this.removeConnection(sessionId);
       return false;
     }
   }

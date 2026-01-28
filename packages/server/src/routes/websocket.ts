@@ -90,14 +90,30 @@ export async function registerWebSocketRoutes(fastify: FastifyInstance) {
 
     // Handle incoming messages
     socket.on('message', async (rawMessage: Buffer | string) => {
-      const messageStr = rawMessage.toString();
-      fastify.log.debug({ sessionId, message: messageStr }, 'Received WebSocket message');
+      try {
+        const messageStr = rawMessage.toString();
+        fastify.log.debug({ sessionId, message: messageStr }, 'Received WebSocket message');
 
-      const result = await messageHandler.handleMessage(messageStr, sessionId);
+        const result = await messageHandler.handleMessage(messageStr, sessionId);
 
-      if (!result.success) {
-        // Send error message back to client
-        socket.send(JSON.stringify(result.error));
+        if (!result.success) {
+          // Send error message back to client
+          if (socket.readyState === socket.OPEN) {
+            socket.send(JSON.stringify(result.error));
+          }
+        }
+      } catch (error) {
+        fastify.log.error({ sessionId, error }, 'Unexpected error handling message');
+
+        // Attempt to send error to client
+        if (socket.readyState === socket.OPEN) {
+          const errorMessage: ServerMessage = {
+            type: 'error',
+            sessionId,
+            error: 'Internal server error processing message'
+          };
+          socket.send(JSON.stringify(errorMessage));
+        }
       }
     });
 
