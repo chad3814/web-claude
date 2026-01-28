@@ -27,3 +27,5 @@ export {
   messageExists,
   calculateTotalTokens,
 } from './utils.js';
+export { getSessionStore, resetSessionStore, hasSessionStore } from './singleton.js';
+export { loadConfig, DEFAULT_CONFIG } from './config.js';
