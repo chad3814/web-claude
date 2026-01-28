@@ -1,6 +1,9 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import dotenv from 'dotenv';
+import { ClaudeService } from './services/claude';
+import { ConversationManager } from './services/conversation';
+import { chatRoutes } from './routes/chat';
 
 // Load environment variables
 dotenv.config();
@@ -8,6 +11,17 @@ dotenv.config();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const HOST = process.env.HOST || '0.0.0.0';
 const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Initialize services
+const claudeService = new ClaudeService({
+  apiKey: process.env.ANTHROPIC_API_KEY || '',
+  model: process.env.ANTHROPIC_MODEL,
+  maxTokens: process.env.ANTHROPIC_MAX_TOKENS
+    ? parseInt(process.env.ANTHROPIC_MAX_TOKENS, 10)
+    : undefined,
+});
+
+const conversationManager = new ConversationManager();
 
 // Create Fastify instance with logger
 const fastify = Fastify({
@@ -27,6 +41,12 @@ await fastify.register(cors, {
     ? ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:3000', 'http://127.0.0.1:5173']
     : false,
   credentials: true
+});
+
+// Register chat routes
+await fastify.register(chatRoutes, {
+  claudeService,
+  conversationManager,
 });
 
 // Health check endpoint
