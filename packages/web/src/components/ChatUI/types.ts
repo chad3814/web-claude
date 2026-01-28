@@ -31,6 +31,7 @@ export interface ChatMessageProps {
  */
 export interface ChatMessageListProps {
   messages: Message[];
+  isWaitingForResponse?: boolean;
 }
 
 /**

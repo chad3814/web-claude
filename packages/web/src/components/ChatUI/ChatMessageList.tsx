@@ -7,7 +7,7 @@ import './ChatMessageList.css';
  * ChatMessageList component displays the scrollable list of messages.
  * Implements smart auto-scrolling that respects user scroll position.
  */
-export const ChatMessageList: React.FC<ChatMessageListProps> = ({ messages }) => {
+export const ChatMessageList: React.FC<ChatMessageListProps> = ({ messages, isWaitingForResponse = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
@@ -70,6 +70,15 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({ messages }) =>
           {messages.map((message) => (
             <ChatMessage key={message.id} message={message} />
           ))}
+          {isWaitingForResponse && (
+            <div className="chat-message-list__typing-indicator" role="status" aria-live="polite">
+              <div className="typing-indicator">
+                <span className="typing-indicator__dot"></span>
+                <span className="typing-indicator__dot"></span>
+                <span className="typing-indicator__dot"></span>
+              </div>
+            </div>
+          )}
           <div ref={bottomRef} className="chat-message-list__bottom" />
         </>
       )}

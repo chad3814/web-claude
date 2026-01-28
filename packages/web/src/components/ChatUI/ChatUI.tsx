@@ -76,9 +76,19 @@ export const ChatUI: React.FC = () => {
   }, []);
 
   const handleIncomingMessage = useCallback((message: WebSocketMessage) => {
+    // Validate message format
+    if (!message || typeof message !== 'object' || !message.type) {
+      console.error('Invalid message format:', message);
+      return;
+    }
+
     switch (message.type) {
       case 'assistant_message':
         // Complete assistant message (non-streaming)
+        if (typeof message.data !== 'string') {
+          console.error('Invalid assistant_message data:', message.data);
+          return;
+        }
         setIsWaitingForResponse(false);
         setMessages((prev) => [
           ...prev,
@@ -95,6 +105,10 @@ export const ChatUI: React.FC = () => {
       case 'stream_chunk':
         // Streaming response chunk
         const chunk = message.data as StreamChunk;
+        if (!chunk || typeof chunk.content !== 'string') {
+          console.error('Invalid stream_chunk data:', chunk);
+          return;
+        }
         handleStreamChunk(chunk);
         break;
 
@@ -107,7 +121,7 @@ export const ChatUI: React.FC = () => {
           {
             id: crypto.randomUUID(),
             role: 'assistant',
-            content: `Error: ${message.data}`,
+            content: `Error: ${String(message.data)}`,
             timestamp: message.timestamp,
             isStreaming: false,
           },
@@ -162,6 +176,13 @@ export const ChatUI: React.FC = () => {
       return;
     }
 
+    // Limit message length (client-side validation)
+    const MAX_MESSAGE_LENGTH = 10000;
+    if (content.length > MAX_MESSAGE_LENGTH) {
+      console.warn(`Message exceeds maximum length of ${MAX_MESSAGE_LENGTH} characters`);
+      return;
+    }
+
     // Add user message to UI
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -194,7 +215,7 @@ export const ChatUI: React.FC = () => {
       </div>
 
       <div className="chat-ui__body">
-        <ChatMessageList messages={messages} />
+        <ChatMessageList messages={messages} isWaitingForResponse={isWaitingForResponse} />
       </div>
 
       <div className="chat-ui__footer">
