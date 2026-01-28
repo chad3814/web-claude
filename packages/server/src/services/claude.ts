@@ -121,7 +121,7 @@ export class ClaudeService {
   private handleAPIError(error: unknown): AnthropicAPIError {
     if (error instanceof Anthropic.APIError) {
       const statusCode = error.status;
-      const errorType = error.type || 'unknown_error';
+      const errorType = (error as any).type || 'unknown_error';
       const message = error.message;
 
       // Handle rate limiting
