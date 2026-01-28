@@ -3,12 +3,14 @@ import type { WebSocket } from 'ws';
 import type { ServerMessage, ClientMessage } from '../websocket/types.js';
 import { ConnectionManager } from '../websocket/connection-manager.js';
 import { MessageHandler } from '../websocket/message-handler.js';
+import { StreamBroadcaster } from '../websocket/stream-broadcaster.js';
 
 // Create singleton connection manager
 const connectionManager = new ConnectionManager();
 
-// Message handler will be initialized when routes are registered
+// Message handler and stream broadcaster will be initialized when routes are registered
 let messageHandler: MessageHandler;
+let streamBroadcaster: StreamBroadcaster;
 
 /**
  * Get the connection manager instance
@@ -25,21 +27,45 @@ export function getMessageHandler(): MessageHandler {
 }
 
 /**
+ * Get the stream broadcaster instance
+ */
+export function getStreamBroadcaster(): StreamBroadcaster {
+  return streamBroadcaster;
+}
+
+/**
  * Register WebSocket routes
  */
 export async function registerWebSocketRoutes(fastify: FastifyInstance) {
-  // Initialize message handler
+  // Initialize message handler and stream broadcaster
   messageHandler = new MessageHandler(fastify.log);
+  streamBroadcaster = new StreamBroadcaster(connectionManager, fastify.log);
 
-  // Set up a basic user message handler (will be replaced in Task Group 4)
+  // Set up user message handler with streaming support
   messageHandler.setUserMessageHandler(async (message: ClientMessage, sessionId: string) => {
     fastify.log.info({
       sessionId,
       messageType: message.type,
       content: message.content
-    }, 'User message received');
+    }, 'User message received, starting stream');
 
-    // TODO: This will be replaced with Claude API integration in Task Group 4
+    try {
+      // Stream the response to the client
+      await streamBroadcaster.streamResponseToClient(
+        sessionId,
+        message.content,
+        (fullResponse) => {
+          // Optional: Save the full response to conversation history
+          fastify.log.debug({ sessionId, responseLength: fullResponse.length }, 'Stream complete');
+        }
+      );
+    } catch (error) {
+      fastify.log.error({ sessionId, error }, 'Error streaming response');
+      streamBroadcaster.broadcastError(
+        sessionId,
+        error instanceof Error ? error.message : 'Failed to generate response'
+      );
+    }
   });
 
   // WebSocket endpoint
