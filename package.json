@@ -4,11 +4,17 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@8.15.0",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "clean": "pnpm -r exec rm -rf node_modules dist"
+    "clean": "pnpm -r exec rm -rf node_modules dist",
+    "web:dev": "npm run dev --workspace=@web-claude/web",
+    "web:build": "npm run build --workspace=@web-claude/web",
+    "web:preview": "npm run preview --workspace=@web-claude/web"
   },
   "devDependencies": {
     "typescript": "^5.3.3",
